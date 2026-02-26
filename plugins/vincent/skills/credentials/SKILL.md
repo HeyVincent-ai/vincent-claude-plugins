@@ -14,6 +14,8 @@ metadata:
 
 # Vincent - Credentials for agents
 
+> **Plugin note:** The credentials skill uses the `@vincentai/cli` package to write credentials directly to `.env` files without exposing values to the agent. This CLI-based workflow requires Node.js 20+ and is designed for local development environments. In the Claude Code plugin context (especially Cowork), manage credentials via the [Vincent dashboard](https://heyvincent.ai) instead. The CLI instructions below are for OpenClaw and other CLI-compatible runtimes.
+
 Use this skill to securely manage credentials that your application needs — API keys, passwords, OAuth tokens, SSH keys, or structured username/password pairs. The agent creates a secret, the user (or agent) sets the value, and the agent uses the CLI to write it directly to a `.env` file. **The credential value never appears in the agent's context or stdout.**
 
 This is useful when the agent is building something that needs credentials (e.g. a third-party API key). Instead of the user pasting the credential into chat (where it enters the agent's context), they set it via the Vincent dashboard, and the agent writes it to the `.env` file using the CLI.

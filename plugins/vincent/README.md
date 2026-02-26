@@ -2,6 +2,8 @@
 
 Give Claude Code access to secure crypto wallets, Polymarket trading, and real-time data through [Vincent](https://heyvincent.ai).
 
+All tools work via MCP — no CLI or Node.js required. Authentication is handled automatically through the `VINCENT_API_KEY` environment variable.
+
 ## What you get
 
 Once installed, Claude Code gains access to these tools (based on your account type):
@@ -26,7 +28,7 @@ This plugin ships with the following skills:
 | **trading-engine** | Create and manage automated trading strategies for Polymarket. Combines data monitoring (web search, Twitter, price feeds, newswire) with LLM-powered decision-making. Also includes standalone stop-loss, take-profit, and trailing stop rules. |
 | **brave-search** | Real-time web and news search via Brave Search with pay-per-call billing. |
 | **twitter** | Search tweets, look up user profiles, and get recent activity from Twitter/X. |
-| **credentials** | Securely store and manage credentials (API keys, passwords, tokens) and write them to `.env` files without exposing values in the agent's context. |
+| **credentials** | Securely store and manage credentials (API keys, passwords, tokens). CLI-based — manage via the [Vincent dashboard](https://heyvincent.ai) in the plugin context. |
 | **vincent-setup** | Guided setup wizard for configuring your Vincent API key and verifying the connection. Run `/vincent-setup` to get started. |
 
 ## Setup
