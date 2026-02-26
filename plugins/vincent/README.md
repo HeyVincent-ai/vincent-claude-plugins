@@ -15,6 +15,20 @@ Once installed, Claude Code gains access to these tools (based on your account t
 
 All actions go through Vincent's policy engine with audit logging. Your private keys never leave Vincent's secure infrastructure.
 
+## Included Skills
+
+This plugin ships with the following skills:
+
+| Skill | Description |
+|---|---|
+| **wallet** | Transfer tokens, swap on DEXs, check balances, and interact with smart contracts on any EVM chain. |
+| **polymarket** | Browse prediction markets, place bets, view positions, check balances, and cancel orders on Polymarket. |
+| **trading-engine** | Create and manage automated trading strategies for Polymarket. Combines data monitoring (web search, Twitter, price feeds, newswire) with LLM-powered decision-making. Also includes standalone stop-loss, take-profit, and trailing stop rules. |
+| **brave-search** | Real-time web and news search via Brave Search with pay-per-call billing. |
+| **twitter** | Search tweets, look up user profiles, and get recent activity from Twitter/X. |
+| **credentials** | Securely store and manage credentials (API keys, passwords, tokens) and write them to `.env` files without exposing values in the agent's context. |
+| **vincent-setup** | Guided setup wizard for configuring your Vincent API key and verifying the connection. Run `/vincent-setup` to get started. |
+
 ## Setup
 
 ### 1. Install the plugin
