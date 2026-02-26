@@ -1,0 +1,39 @@
+# Vincent Plugins for Claude Code
+
+The official [Vincent](https://heyvincent.ai) plugin marketplace for Claude Code. Gives your agent access to secure crypto wallets, Polymarket trading, and real-time data.
+
+## Quick Start
+
+```
+/plugin marketplace add HeyVincent-ai/vincent-claude-plugins
+/plugin install vincent@vincent-plugins
+export VINCENT_API_KEY="ssk_your_key_here"
+```
+
+Restart Claude Code and you're ready to go.
+
+## What's included
+
+### vincent
+
+Connects Claude Code to Vincent's MCP server, giving your agent access to:
+
+- **Smart Wallets** -- Transfer tokens, swap on DEXs, interact with DeFi protocols
+- **Polymarket** -- Browse prediction markets, place bets, manage positions
+- **Web Search** -- Real-time web and news search via Brave
+- **Twitter/X** -- Search tweets, look up profiles, get recent activity
+
+All operations are secured by Vincent's policy engine with spending limits, allowlists, and optional human approval via Telegram.
+
+## Get your API key
+
+1. Sign up at [heyvincent.ai](https://heyvincent.ai)
+2. Create an account (Smart Wallet, Polymarket Wallet, or Data Source)
+3. Go to **API Keys** and create a new key
+4. Export it: `export VINCENT_API_KEY="ssk_..."`
+
+## Links
+
+- [Vincent Dashboard](https://heyvincent.ai)
+- [Docs](https://github.com/HeyVincent-ai/Vincent/tree/main/docs)
+- [Plugin Details](./plugins/vincent/README.md)

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "vincent": {
+      "type": "http",
+      "url": "https://heyvincent.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${VINCENT_API_KEY}"
+      }
+    }
+  }
+}

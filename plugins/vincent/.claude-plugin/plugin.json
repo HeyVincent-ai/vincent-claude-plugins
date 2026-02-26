@@ -1,0 +1,14 @@
+{
+  "name": "vincent",
+  "version": "1.0.0",
+  "description": "Connect Claude Code to Vincent for secure crypto wallets, Polymarket trading, and real-time data. Vincent holds your secrets and executes actions on behalf of your agent with policy controls and audit logging.",
+  "author": {
+    "name": "Vincent",
+    "email": "support@heyvincent.ai",
+    "url": "https://heyvincent.ai"
+  },
+  "homepage": "https://heyvincent.ai",
+  "repository": "https://github.com/HeyVincent-ai/vincent-claude-plugins",
+  "license": "MIT",
+  "keywords": ["crypto", "wallet", "polymarket", "mcp", "web3", "trading", "defi", "data"]
+}

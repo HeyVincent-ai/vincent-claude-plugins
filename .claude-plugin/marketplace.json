@@ -1,0 +1,31 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "vincent-plugins",
+  "owner": {
+    "name": "Vincent",
+    "email": "support@heyvincent.ai"
+  },
+  "metadata": {
+    "description": "Give Claude Code access to crypto wallets, Polymarket trading, and real-time data through Vincent.",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "vincent",
+      "source": "./plugins/vincent",
+      "description": "Secure crypto wallets, Polymarket trading, web search, and Twitter data for Claude Code -- powered by Vincent's MCP server.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Vincent",
+        "email": "support@heyvincent.ai"
+      },
+      "homepage": "https://heyvincent.ai",
+      "repository": "https://github.com/HeyVincent-ai/vincent-claude-plugins",
+      "license": "MIT",
+      "keywords": ["crypto", "wallet", "polymarket", "mcp", "web3", "trading", "defi", "data"],
+      "category": "productivity",
+      "tags": ["blockchain", "prediction-markets", "search", "twitter"]
+    }
+  ]
+}
