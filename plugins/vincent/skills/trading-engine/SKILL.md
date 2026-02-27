@@ -1,11 +1,120 @@
 # Vincent Trading Engine
 
-Use the Vincent Trading Engine MCP tools to create and manage automated trading strategies for Polymarket. The Trading Engine has two modes:
+Use the Vincent Trading Engine MCP tools to create and manage automated trading strategies. The Trading Engine has three modes:
 
-1. **LLM-Powered Strategies** — Create strategies with monitors (web search, Twitter, price alerts, newswire). When a monitor detects new information, an LLM evaluates it against your thesis and decides whether to trade, set protective orders, or alert you.
-2. **Standalone Trade Rules** — Set stop-loss, take-profit, and trailing stop rules that execute automatically when price conditions are met. No LLM involved.
+1. **V2 Multi-Venue Strategies** — The latest strategy framework. Define instruments, a thesis, drivers (data monitors), escalation policies, trade rules, and notifications. Supports multiple venues (starting with Polymarket). Includes a full signal pipeline, LLM decision engine, and detailed analytics.
+2. **V1 Polymarket Strategies** — Create Polymarket-specific strategies with monitors (web search, Twitter, price alerts, newswire). When a monitor detects new data, an LLM evaluates it against your thesis and decides whether to trade, set rules, or alert you.
+3. **Standalone Trade Rules** — Set stop-loss, take-profit, and trailing stop rules that execute automatically when price conditions are met. No LLM involved.
 
 Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
+
+---
+
+## V2 Multi-Venue Strategies
+
+V2 strategies support multiple venues, structured signal pipelines, and richer analytics. Use V2 for new strategies.
+
+### V2 Strategy MCP Tools
+
+| Tool | Description |
+|---|---|
+| `vincent_v2_strategy_create` | Create a new V2 strategy (starts as DRAFT) |
+| `vincent_v2_strategy_list` | List all V2 strategies |
+| `vincent_v2_strategy_get` | Get V2 strategy details |
+| `vincent_v2_strategy_update` | Update a DRAFT V2 strategy |
+| `vincent_v2_strategy_activate` | Activate a DRAFT V2 strategy |
+| `vincent_v2_strategy_pause` | Pause an ACTIVE V2 strategy |
+| `vincent_v2_strategy_resume` | Resume a PAUSED V2 strategy |
+| `vincent_v2_strategy_archive` | Archive a V2 strategy permanently |
+
+### V2 Analytics & Monitoring Tools
+
+| Tool | Description |
+|---|---|
+| `vincent_v2_portfolio` | Portfolio overview across all venues (positions, balances, totals) |
+| `vincent_v2_signal_log` | Raw signals received by drivers |
+| `vincent_v2_decision_log` | LLM decisions: thesis updates, trade decisions, reasoning |
+| `vincent_v2_trade_log` | Trade execution log: orders, fills, results |
+| `vincent_v2_performance` | Performance metrics: P&L, win rate, per-instrument breakdown |
+| `vincent_v2_filter_stats` | Signal filter statistics (pass/drop at each pipeline layer) |
+| `vincent_v2_escalation_stats` | Escalation policy stats (wake frequency, batch counts, threshold breaches) |
+
+### V2 Order Management Tools
+
+| Tool | Description |
+|---|---|
+| `vincent_v2_place_order` | Place a manual order on any venue (market or limit) |
+| `vincent_v2_cancel_order` | Cancel an open order on a venue |
+| `vincent_v2_close_position` | Close a position by placing an opposite-side market order |
+| `vincent_v2_kill_switch` | Emergency: pause all strategies and cancel all orders across all venues |
+
+### V2 Strategy Parameters
+
+#### vincent_v2_strategy_create
+- `name` (string, required): Strategy name
+- `config` (object, required): V2StrategyConfig with:
+  - `instruments` — Markets/tokens to trade
+  - `thesis` — Your trading thesis
+  - `drivers` — Data monitors (web search, Twitter, price, newswire)
+  - `escalation` — When and how to wake the LLM (batch vs immediate, thresholds)
+  - `tradeRules` — Automated stop-loss, take-profit, trailing stop rules
+  - `notifications` — Alert configuration
+- `dataSourceSecretId` (string, optional): DATA_SOURCES secret ID for driver monitoring
+- `pollIntervalMinutes` (number, optional): Driver polling interval (1-1440, default: 15)
+
+#### vincent_v2_strategy_update
+- `strategyId` (string, required)
+- `name`, `config`, `dataSourceSecretId`, `pollIntervalMinutes` — pass only fields to change (DRAFT only)
+
+#### vincent_v2_strategy_activate / pause / resume / archive
+- `strategyId` (string, required)
+
+#### vincent_v2_signal_log / decision_log / trade_log
+- `strategyId` (string, required)
+- `limit` (number, optional): Max results (default: 50)
+- `offset` (number, optional): Pagination offset
+
+#### vincent_v2_place_order
+- `instrumentId` (string, required): Token ID, ticker, etc.
+- `venue` (string, required): Venue name (e.g. `"polymarket"`)
+- `side` (string, required): `BUY` or `SELL`
+- `size` (number, required): Order size
+- `orderType` (string, required): `market` or `limit`
+- `limitPrice` (number, optional): Required for limit orders
+
+#### vincent_v2_cancel_order
+- `venue` (string, required): Venue name
+- `orderId` (string, required): Order ID
+
+#### vincent_v2_close_position
+- `instrumentId` (string, required): Instrument ID
+- `venue` (string, required): Venue name
+
+### V2 Common Workflows
+
+#### Create and activate a V2 strategy
+1. `vincent_v2_strategy_create` with name and config (instruments, thesis, drivers, escalation, tradeRules, notifications)
+2. Review with `vincent_v2_strategy_get`
+3. `vincent_v2_strategy_activate` to start driver monitoring
+
+#### Monitor a running V2 strategy
+1. `vincent_v2_signal_log` — see raw signals from drivers
+2. `vincent_v2_decision_log` — see LLM reasoning and decisions
+3. `vincent_v2_trade_log` — see order executions and fills
+4. `vincent_v2_performance` — see P&L and win rate
+
+#### Place a manual order through V2
+1. `vincent_v2_place_order` with venue, instrumentId, side, size, and orderType
+2. Orders go through policy enforcement
+
+#### Emergency stop
+1. `vincent_v2_kill_switch` — pauses all active strategies and cancels all open orders across all venues
+
+---
+
+## V1 Polymarket Strategies
+
+V1 strategies are Polymarket-specific. For new strategies, prefer V2 above.
 
 ## Strategy MCP Tools
 
@@ -15,7 +124,7 @@ Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 | `vincent_trading_strategy_list` | List all strategies |
 | `vincent_trading_strategy_get` | Get strategy details |
 | `vincent_trading_strategy_update` | Update a DRAFT strategy |
-| `vincent_trading_strategy_activate` | Activate a DRAFT or resume a PAUSED strategy |
+| `vincent_trading_strategy_activate` | Activate a DRAFT strategy (use `resume` for PAUSED) |
 | `vincent_trading_strategy_pause` | Pause an ACTIVE strategy |
 | `vincent_trading_strategy_resume` | Resume a PAUSED strategy |
 | `vincent_trading_strategy_archive` | Archive a strategy permanently |

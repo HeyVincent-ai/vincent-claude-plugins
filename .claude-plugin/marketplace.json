@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "Give Claude Code access to crypto wallets, Polymarket trading, and real-time data through Vincent.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "pluginRoot": "./plugins"
   },
   "plugins": [
@@ -15,7 +15,7 @@
       "name": "vincent",
       "source": "./plugins/vincent",
       "description": "Secure crypto wallets, Polymarket trading, web search, and Twitter data for Claude Code -- powered by Vincent's MCP server.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "Vincent",
         "email": "support@heyvincent.ai"

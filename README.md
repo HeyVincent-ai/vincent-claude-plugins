@@ -20,7 +20,7 @@ Connects Claude Code to Vincent's MCP server, giving your agent access to:
 
 - **Smart Wallets** -- Transfer tokens, swap on DEXs, interact with DeFi protocols
 - **Polymarket** -- Browse prediction markets, place bets, manage positions
-- **Trading Engine** -- Automated trading strategies with LLM-powered decision-making, plus standalone stop-loss, take-profit, and trailing stop rules
+- **Trading Engine** -- Multi-venue automated trading strategies (V2) with instruments, drivers, escalation policies, and full analytics. Also includes V1 Polymarket strategies and standalone stop-loss, take-profit, and trailing stop rules
 - **Web Search** -- Real-time web and news search via Brave
 - **Twitter/X** -- Search tweets, look up profiles, get recent activity
 - **Credentials** -- Securely store API keys, passwords, and tokens; write to `.env` files without exposing values in the agent's context
@@ -33,7 +33,7 @@ All operations are secured by Vincent's policy engine with spending limits, allo
 |---|---|
 | `wallet` | Transfer tokens, swap on DEXs, check balances on any EVM chain |
 | `polymarket` | Browse markets, place bets, view positions, cancel orders |
-| `trading-engine` | Automated trading strategies with monitors (web, Twitter, price, newswire) and LLM-powered decisions, plus standalone stop-loss/take-profit/trailing stop rules |
+| `trading-engine` | Multi-venue automated strategies (V2) with signal pipelines, LLM decisions, and analytics. V1 Polymarket strategies with monitors. Standalone stop-loss/take-profit/trailing stop rules. |
 | `brave-search` | Real-time web and news search via Brave Search |
 | `twitter` | Search tweets, look up profiles, get recent activity |
 | `credentials` | Securely store and manage credentials, write to `.env` without exposing values |
