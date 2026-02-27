@@ -1,33 +1,60 @@
 # Vincent Trading Engine
 
-Use the Vincent Trading Engine MCP tools to create and manage automated trading strategies. The Trading Engine has three modes:
+Use the Vincent Trading Engine MCP tools to create and manage automated trading strategies on Polymarket (and future venues). The Trading Engine has two modes:
 
-1. **V2 Multi-Venue Strategies** — The latest strategy framework. Define instruments, a thesis, drivers (data monitors), escalation policies, trade rules, and notifications. Supports multiple venues (starting with Polymarket). Includes a full signal pipeline, LLM decision engine, and detailed analytics.
-2. **V1 Polymarket Strategies** — Create Polymarket-specific strategies with monitors (web search, Twitter, price alerts, newswire). When a monitor detects new data, an LLM evaluates it against your thesis and decides whether to trade, set rules, or alert you.
-3. **Standalone Trade Rules** — Set stop-loss, take-profit, and trailing stop rules that execute automatically when price conditions are met. No LLM involved.
+1. **Multi-Venue Strategies** — Define instruments, a thesis, drivers (data monitors), escalation policies, trade rules, and notifications. Includes a signal pipeline that filters noise before the LLM sees it, an LLM decision engine, and detailed analytics.
+2. **Standalone Trade Rules** — Set stop-loss, take-profit, and trailing stop rules that execute automatically when price conditions are met. No LLM involved.
 
 Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 
 ---
 
-## V2 Multi-Venue Strategies
+## Signal Pipeline
 
-V2 strategies support multiple venues, structured signal pipelines, and richer analytics. Use V2 for new strategies.
+Every strategy runs a multi-stage signal pipeline. Understanding it is key to writing good strategies:
 
-### V2 Strategy MCP Tools
+```
+Drivers (web search, Twitter, price, newswire)
+    │
+    ▼
+Raw Signals — everything the drivers pick up
+    │
+    ▼
+Filter Layers — drop noise, duplicates, irrelevant data
+    │
+    ▼
+Escalation Policy — batch signals, apply thresholds
+    │
+    ▼
+LLM Invocation — only when the escalation policy decides it's worth it
+    │
+    ▼
+Actions — trade, update thesis, create rules, alert user, or no action
+```
+
+**Key points:**
+- **Signals are pre-filtered before the LLM sees them.** The filter layers drop duplicates, low-relevance noise, and data that doesn't match the strategy's instruments or drivers.
+- **The LLM only wakes when the escalation policy decides it should.** Escalation can batch signals (e.g. "wake every 30 minutes with a summary") or trigger immediately on high-priority events (e.g. "price moved >5%").
+- **This means the LLM is not invoked on every poll.** Unlike raw polling, the pipeline saves cost and reduces noise. Your thesis should focus on decision-making, not filtering.
+
+Use `vincent_v2_filter_stats` and `vincent_v2_escalation_stats` to see how signals flow through the pipeline.
+
+---
+
+## Strategy MCP Tools
 
 | Tool | Description |
 |---|---|
-| `vincent_v2_strategy_create` | Create a new V2 strategy (starts as DRAFT) |
-| `vincent_v2_strategy_list` | List all V2 strategies |
-| `vincent_v2_strategy_get` | Get V2 strategy details |
-| `vincent_v2_strategy_update` | Update a DRAFT V2 strategy |
-| `vincent_v2_strategy_activate` | Activate a DRAFT V2 strategy |
-| `vincent_v2_strategy_pause` | Pause an ACTIVE V2 strategy |
-| `vincent_v2_strategy_resume` | Resume a PAUSED V2 strategy |
-| `vincent_v2_strategy_archive` | Archive a V2 strategy permanently |
+| `vincent_v2_strategy_create` | Create a new strategy (starts as DRAFT) |
+| `vincent_v2_strategy_list` | List all strategies |
+| `vincent_v2_strategy_get` | Get strategy details |
+| `vincent_v2_strategy_update` | Update a DRAFT strategy |
+| `vincent_v2_strategy_activate` | Activate a DRAFT strategy |
+| `vincent_v2_strategy_pause` | Pause an ACTIVE strategy |
+| `vincent_v2_strategy_resume` | Resume a PAUSED strategy |
+| `vincent_v2_strategy_archive` | Archive a strategy permanently |
 
-### V2 Analytics & Monitoring Tools
+## Analytics & Monitoring Tools
 
 | Tool | Description |
 |---|---|
@@ -39,7 +66,7 @@ V2 strategies support multiple venues, structured signal pipelines, and richer a
 | `vincent_v2_filter_stats` | Signal filter statistics (pass/drop at each pipeline layer) |
 | `vincent_v2_escalation_stats` | Escalation policy stats (wake frequency, batch counts, threshold breaches) |
 
-### V2 Order Management Tools
+## Order Management Tools
 
 | Tool | Description |
 |---|---|
@@ -47,91 +74,6 @@ V2 strategies support multiple venues, structured signal pipelines, and richer a
 | `vincent_v2_cancel_order` | Cancel an open order on a venue |
 | `vincent_v2_close_position` | Close a position by placing an opposite-side market order |
 | `vincent_v2_kill_switch` | Emergency: pause all strategies and cancel all orders across all venues |
-
-### V2 Strategy Parameters
-
-#### vincent_v2_strategy_create
-- `name` (string, required): Strategy name
-- `config` (object, required): V2StrategyConfig with:
-  - `instruments` — Markets/tokens to trade
-  - `thesis` — Your trading thesis
-  - `drivers` — Data monitors (web search, Twitter, price, newswire)
-  - `escalation` — When and how to wake the LLM (batch vs immediate, thresholds)
-  - `tradeRules` — Automated stop-loss, take-profit, trailing stop rules
-  - `notifications` — Alert configuration
-- `dataSourceSecretId` (string, optional): DATA_SOURCES secret ID for driver monitoring
-- `pollIntervalMinutes` (number, optional): Driver polling interval (1-1440, default: 15)
-
-#### vincent_v2_strategy_update
-- `strategyId` (string, required)
-- `name`, `config`, `dataSourceSecretId`, `pollIntervalMinutes` — pass only fields to change (DRAFT only)
-
-#### vincent_v2_strategy_activate / pause / resume / archive
-- `strategyId` (string, required)
-
-#### vincent_v2_signal_log / decision_log / trade_log
-- `strategyId` (string, required)
-- `limit` (number, optional): Max results (default: 50)
-- `offset` (number, optional): Pagination offset
-
-#### vincent_v2_place_order
-- `instrumentId` (string, required): Token ID, ticker, etc.
-- `venue` (string, required): Venue name (e.g. `"polymarket"`)
-- `side` (string, required): `BUY` or `SELL`
-- `size` (number, required): Order size
-- `orderType` (string, required): `market` or `limit`
-- `limitPrice` (number, optional): Required for limit orders
-
-#### vincent_v2_cancel_order
-- `venue` (string, required): Venue name
-- `orderId` (string, required): Order ID
-
-#### vincent_v2_close_position
-- `instrumentId` (string, required): Instrument ID
-- `venue` (string, required): Venue name
-
-### V2 Common Workflows
-
-#### Create and activate a V2 strategy
-1. `vincent_v2_strategy_create` with name and config (instruments, thesis, drivers, escalation, tradeRules, notifications)
-2. Review with `vincent_v2_strategy_get`
-3. `vincent_v2_strategy_activate` to start driver monitoring
-
-#### Monitor a running V2 strategy
-1. `vincent_v2_signal_log` — see raw signals from drivers
-2. `vincent_v2_decision_log` — see LLM reasoning and decisions
-3. `vincent_v2_trade_log` — see order executions and fills
-4. `vincent_v2_performance` — see P&L and win rate
-
-#### Place a manual order through V2
-1. `vincent_v2_place_order` with venue, instrumentId, side, size, and orderType
-2. Orders go through policy enforcement
-
-#### Emergency stop
-1. `vincent_v2_kill_switch` — pauses all active strategies and cancels all open orders across all venues
-
----
-
-## V1 Polymarket Strategies
-
-V1 strategies are Polymarket-specific. For new strategies, prefer V2 above.
-
-## Strategy MCP Tools
-
-| Tool | Description |
-|---|---|
-| `vincent_trading_strategy_create` | Create a new strategy (starts as DRAFT) |
-| `vincent_trading_strategy_list` | List all strategies |
-| `vincent_trading_strategy_get` | Get strategy details |
-| `vincent_trading_strategy_update` | Update a DRAFT strategy |
-| `vincent_trading_strategy_activate` | Activate a DRAFT strategy (use `resume` for PAUSED) |
-| `vincent_trading_strategy_pause` | Pause an ACTIVE strategy |
-| `vincent_trading_strategy_resume` | Resume a PAUSED strategy |
-| `vincent_trading_strategy_archive` | Archive a strategy permanently |
-| `vincent_trading_strategy_duplicate` | Duplicate a strategy as a new version (DRAFT) |
-| `vincent_trading_strategy_versions` | Get version history for a strategy |
-| `vincent_trading_strategy_invocations` | Get LLM invocation log (decisions, actions, costs) |
-| `vincent_trading_strategy_costs` | Get aggregate LLM cost summary |
 
 ## Trade Rule MCP Tools
 
@@ -145,34 +87,49 @@ V1 strategies are Polymarket-specific. For new strategies, prefer V2 above.
 | `vincent_trading_rule_events` | Get event log (triggers, updates, executions) |
 | `vincent_trading_rule_status` | Get monitoring worker health status |
 
+---
+
 ## Strategy Parameters
 
-### vincent_trading_strategy_create
-- `name` (string, required): Strategy name (1-200 chars)
-- `alertPrompt` (string, required): Your thesis and instructions for the LLM (1-10000 chars)
-- `pollIntervalMinutes` (number, optional): How often to check periodic monitors (1-1440, default: 15)
-- `config` (object, required): Strategy configuration with:
-  - `monitors.periodic.webSearch.enabled` / `.keywords[]` — Brave web search keywords
-  - `monitors.periodic.twitter.enabled` / `.accounts[]` — Twitter handles to monitor
-  - `monitors.live.newswire.enabled` / `.topics[]` — Finnhub market news topics
-  - `monitors.live.priceAlerts.enabled` / `.triggers[]` — Price conditions (ABOVE, BELOW, CHANGE_PCT)
-  - `tools.canTrade` — Allow LLM to place trades
-  - `tools.canSetRules` — Allow LLM to create stop-loss/take-profit/trailing stop rules
-  - `tools.maxTradeUsd` — Maximum USD per LLM-initiated trade
-  - `risk.maxOpenPositions` — Max concurrent positions
-  - `risk.maxPortfolioAllocationPct` — Max portfolio % per position
+### vincent_v2_strategy_create
+- `name` (string, required): Strategy name
+- `config` (object, required): V2StrategyConfig with:
+  - `instruments` — Markets/tokens to trade
+  - `thesis` — Your trading thesis (see Thesis Best Practices below)
+  - `drivers` — Data monitors (web search, Twitter, price, newswire)
+  - `escalation` — When and how to wake the LLM (batch vs immediate, thresholds)
+  - `tradeRules` — Automated stop-loss, take-profit, trailing stop rules
+  - `notifications` — Alert configuration
+- `dataSourceSecretId` (string, optional): DATA_SOURCES secret ID for driver monitoring
+- `pollIntervalMinutes` (number, optional): Driver polling interval (1-1440, default: 15)
 
-### vincent_trading_strategy_update
+### vincent_v2_strategy_update
 - `strategyId` (string, required)
-- `name`, `alertPrompt`, `pollIntervalMinutes`, `config` — any fields to change (DRAFT only)
+- `name`, `config`, `dataSourceSecretId`, `pollIntervalMinutes` — pass only fields to change (DRAFT only)
 
-### vincent_trading_strategy_activate / pause / resume / archive / duplicate
+### vincent_v2_strategy_activate / pause / resume / archive
 - `strategyId` (string, required)
 
-### vincent_trading_strategy_invocations
+### vincent_v2_signal_log / decision_log / trade_log
 - `strategyId` (string, required)
-- `limit` (number, optional): 1-500 (default: 50)
+- `limit` (number, optional): Max results (default: 50)
 - `offset` (number, optional): Pagination offset
+
+### vincent_v2_place_order
+- `instrumentId` (string, required): Token ID, ticker, etc.
+- `venue` (string, required): Venue name (e.g. `"polymarket"`)
+- `side` (string, required): `BUY` or `SELL`
+- `size` (number, required): Order size
+- `orderType` (string, required): `market` or `limit`
+- `limitPrice` (number, optional): Required for limit orders
+
+### vincent_v2_cancel_order
+- `venue` (string, required): Venue name
+- `orderId` (string, required): Order ID
+
+### vincent_v2_close_position
+- `instrumentId` (string, required): Instrument ID
+- `venue` (string, required): Venue name
 
 ### vincent_trading_rule_create
 - `ruleType` (string, required): `STOP_LOSS`, `TAKE_PROFIT`, or `TRAILING_STOP`
@@ -191,6 +148,8 @@ V1 strategies are Polymarket-specific. For new strategies, prefer V2 above.
 - `limit` (number, optional): Default 100
 - `offset` (number, optional): Default 0
 
+---
+
 ## Strategy Lifecycle
 
 ```
@@ -199,54 +158,68 @@ DRAFT → ACTIVE → PAUSED → ACTIVE (resume)
 ```
 
 - **DRAFT**: Can be edited. Not monitoring yet.
-- **ACTIVE**: Monitors running. LLM invoked when new data detected.
-- **PAUSED**: Monitoring stopped. Can resume.
+- **ACTIVE**: Drivers running, signal pipeline processing, LLM invoked per escalation policy.
+- **PAUSED**: Pipeline stopped. Can resume.
 - **ARCHIVED**: Permanent. Cannot reactivate.
 
-To iterate, use `vincent_trading_strategy_duplicate` to create a new DRAFT version.
+---
 
-## Common Workflows
+## Thesis Best Practices
 
-### Create and activate a strategy
-1. `vincent_trading_strategy_create` with name, alertPrompt, and config (monitors + tools)
-2. Review the strategy details with `vincent_trading_strategy_get`
-3. `vincent_trading_strategy_activate` to start monitoring
+The `thesis` field in your strategy config is the instructions for the backend LLM. Because the signal pipeline filters noise before the LLM sees it, write your thesis differently than you would for a raw polling system:
 
-### Set stop-loss protection on a position
-1. Use `vincent_polymarket_holdings` to get current positions and token IDs
-2. `vincent_trading_rule_create` with `ruleType: "STOP_LOSS"`, the market/token IDs, and a trigger price
-3. The rule executes automatically when the price condition is met
+### Focus on decisions, not filtering
+The pipeline handles noise filtering. Signals that reach the LLM have already survived the filter layers — treat them as pre-qualified and worth evaluating. Don't waste thesis tokens telling the LLM to "ignore routine news" or "only pay attention to X" — the drivers and filters already do that.
 
-### Monitor strategy activity
-1. `vincent_trading_strategy_invocations` — see what the LLM decided and why
-2. `vincent_trading_strategy_costs` — see aggregate LLM spending
-3. `vincent_trading_rule_events` — see rule triggers and executions
+### Be specific about actions
+Tell the LLM exactly what to do when it sees a signal, not what to ignore:
 
-### Strategy + trade rules together
-1. Place a bet with `vincent_polymarket_bet`
-2. Create a strategy with monitors to watch the thesis
-3. Set a standalone stop-loss with `vincent_trading_rule_create` for immediate downside protection
-4. Activate the strategy — the LLM monitors and may create additional rules
+**Good:**
+> "Buy YES on any AI regulation market below $0.30 when new restrictive legislation is introduced. Size positions at $25 max. Set a 10% trailing stop on new positions. If the market moves above $0.60, take profit on half."
 
-## Alert Prompt Best Practices
+**Bad:**
+> "Watch AI regulation news. Ignore routine stuff. Only trade if something important happens."
 
-The `alertPrompt` is your instructions to the LLM. Good prompts:
+### Include risk parameters in the thesis
+The LLM can create trade rules. Tell it your risk tolerance:
 
-1. **Specific thesis**: "I believe AI tokens will rally because GPU demand is increasing. Buy any AI-related prediction market position below 40 cents."
-2. **Clear action criteria**: "Only trade if the new information directly supports or contradicts the thesis. If ambiguous, alert me instead."
-3. **Explicit risk**: "Never allocate more than $50 to a single position. Set a 15% trailing stop on any new position."
-4. **Contextual**: "Ignore routine corporate announcements. Focus on regulatory actions, major product launches, and competitive threats."
+**Good:**
+> "Never hold more than $100 in a single market. Always set a stop-loss at 20% below entry. If a position doubles, sell half and move the stop to breakeven."
+
+### Give context on your conviction
+Help the LLM understand why you believe what you believe:
+
+**Good:**
+> "I believe the Fed will cut rates in Q1 2026 based on softening labor data. Buy YES on rate-cut markets when employment reports come in weak. Sell or hedge if inflation data surprises to the upside."
+
+### Example thesis prompts
+
+**Event-driven:**
+> "Trade the FIFA World Cup 2026 winner market. Buy YES on teams that win knockout-round matches at prices below $0.40. Sell if the team is eliminated. Size: $20 per position, trailing stop at 15%."
+
+**Macro thesis:**
+> "I'm bearish on US tech regulation passing before midterms. Buy NO on any US tech regulation market below $0.50. Max $50 per position. Take profit at $0.75. Stop loss at $0.25. Alert me if any bill advances past committee."
+
+**Arbitrage / rebalancing:**
+> "Monitor all Bitcoin price prediction markets. If any YES token trades more than 5 cents below the consensus across markets, buy it. Sell when it converges. Max $30 per trade."
+
+---
 
 ## LLM Available Tools
 
-When invoked, the LLM can use these tools (depending on strategy config):
+When the backend LLM is invoked by the escalation policy, it can take these actions:
 
-| Tool | Requires |
+| Action | Description |
 |---|---|
-| `place_trade` | `canTrade: true` |
-| `set_stop_loss` / `set_take_profit` / `set_trailing_stop` | `canSetRules: true` |
-| `alert_user` | Always available |
-| `no_action` | Always available |
+| **Place trade** | Buy or sell on any configured venue. Subject to policy limits (max trade size, max positions, portfolio allocation). |
+| **Update thesis** | Refine the strategy's thesis based on new information. The updated thesis persists for future invocations. |
+| **Create trade rules** | Set stop-loss, take-profit, or trailing stop rules on positions. These execute automatically without further LLM involvement. |
+| **Alert user** | Send a notification to the user (e.g. "Thesis is at risk — regulatory bill advancing"). |
+| **No action** | Decide the signal doesn't warrant action. This is logged in the decision log. |
+
+All trades placed by the LLM go through Vincent's policy engine — the LLM cannot bypass spending limits, position limits, or approval requirements.
+
+---
 
 ## Trade Rule Behavior
 
@@ -256,11 +229,41 @@ When invoked, the LLM can use these tools (depending on strategy config):
 
 Rule statuses: `ACTIVE` → `TRIGGERED` / `PENDING_APPROVAL` / `FAILED` / `CANCELED`
 
+---
+
+## Common Workflows
+
+### Create and activate a strategy
+1. `vincent_v2_strategy_create` with name and config (instruments, thesis, drivers, escalation, tradeRules, notifications)
+2. Review with `vincent_v2_strategy_get`
+3. `vincent_v2_strategy_activate` to start the signal pipeline
+
+### Monitor a running strategy
+1. `vincent_v2_signal_log` — see raw signals from drivers
+2. `vincent_v2_filter_stats` — see what the filters passed or dropped
+3. `vincent_v2_decision_log` — see LLM reasoning and decisions
+4. `vincent_v2_trade_log` — see order executions and fills
+5. `vincent_v2_performance` — see P&L and win rate
+
+### Set stop-loss protection on a position
+1. Use `vincent_polymarket_holdings` to get current positions and token IDs
+2. `vincent_trading_rule_create` with `ruleType: "STOP_LOSS"`, the market/token IDs, and a trigger price
+3. The rule executes automatically when the price condition is met
+
+### Place a manual order
+1. `vincent_v2_place_order` with venue, instrumentId, side, size, and orderType
+2. Orders go through policy enforcement
+
+### Emergency stop
+1. `vincent_v2_kill_switch` — pauses all active strategies and cancels all open orders across all venues
+
+---
+
 ## Cost Tracking
 
 - LLM invocations cost $0.05-$0.30 depending on context size
 - Costs are deducted from the data source credit balance (`dataSourceCreditUsd`)
-- Brave Search monitors: ~$0.005/call. Twitter monitors: ~$0.005-$0.01/call. Finnhub: free.
+- Brave Search drivers: ~$0.005/call. Twitter drivers: ~$0.005-$0.01/call. Newswire: free.
 - Use `vincent_trading_strategy_costs` to check spending
 
 ## Security

@@ -25,7 +25,7 @@ This plugin ships with the following skills:
 |---|---|
 | **wallet** | Transfer tokens, swap on DEXs, check balances, and interact with smart contracts on any EVM chain. |
 | **polymarket** | Browse prediction markets, place bets, view positions, check balances, and cancel orders on Polymarket. |
-| **trading-engine** | Multi-venue automated strategies (V2) with instruments, thesis, drivers, escalation policies, signal pipelines, LLM-powered decisions, and full analytics (P&L, signal/decision/trade logs). V1 Polymarket strategies with data monitoring. Standalone stop-loss, take-profit, and trailing stop rules. Emergency kill switch. |
+| **trading-engine** | Automated trading strategies with instruments, thesis, drivers, escalation policies, signal pipelines, LLM-powered decisions, and full analytics (P&L, signal/decision/trade logs). Standalone stop-loss, take-profit, and trailing stop rules. Emergency kill switch. |
 | **brave-search** | Real-time web and news search via Brave Search with pay-per-call billing. |
 | **twitter** | Search tweets, look up user profiles, and get recent activity from Twitter/X. |
 | **credentials** | Securely store and manage credentials (API keys, passwords, tokens). CLI-based — manage via the [Vincent dashboard](https://heyvincent.ai) in the plugin context. |
