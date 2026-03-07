@@ -23,9 +23,53 @@
       "homepage": "https://heyvincent.ai",
       "repository": "https://github.com/HeyVincent-ai/vincent-claude-plugins",
       "license": "MIT",
-      "keywords": ["crypto", "wallet", "polymarket", "mcp", "web3", "trading", "defi", "data"],
+      "keywords": [
+        "crypto",
+        "wallet",
+        "polymarket",
+        "mcp",
+        "web3",
+        "trading",
+        "defi",
+        "data"
+      ],
       "category": "productivity",
-      "tags": ["blockchain", "prediction-markets", "search", "twitter"]
+      "tags": [
+        "blockchain",
+        "prediction-markets",
+        "search",
+        "twitter"
+      ]
+    },
+    {
+      "name": "obsd-launchpad",
+      "source": "./plugins/obsd-launchpad",
+      "description": "Launch tokens on Base with bonding curves, scan contracts for vulnerabilities, and manage wallets -- three MCP servers for Base chain DeFi.",
+      "version": "1.0.6",
+      "author": {
+        "name": "THRYXAGI",
+        "email": "thryxagi@proton.me"
+      },
+      "homepage": "https://github.com/lordbasilaiassistant-sudo/obsd-launchpad-mcp",
+      "repository": "https://github.com/lordbasilaiassistant-sudo/vincent-claude-plugins",
+      "license": "MIT",
+      "keywords": [
+        "base",
+        "token-launch",
+        "security-scanner",
+        "wallet",
+        "mcp",
+        "web3",
+        "defi",
+        "bonding-curve"
+      ],
+      "category": "productivity",
+      "tags": [
+        "blockchain",
+        "base",
+        "security",
+        "defi"
+      ]
     }
   ]
 }

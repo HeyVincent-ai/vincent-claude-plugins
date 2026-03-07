@@ -1,0 +1,14 @@
+{
+  "name": "obsd-launchpad",
+  "version": "1.0.6",
+  "description": "Launch tokens on Base with bonding curves, scan contracts for vulnerabilities, and manage wallets -- all from Claude Code. Three MCP servers covering the full Base DeFi agent workflow.",
+  "author": {
+    "name": "THRYXAGI",
+    "email": "thryxagi@proton.me",
+    "url": "https://github.com/lordbasilaiassistant-sudo"
+  },
+  "homepage": "https://github.com/lordbasilaiassistant-sudo/obsd-launchpad-mcp",
+  "repository": "https://github.com/lordbasilaiassistant-sudo/vincent-claude-plugins",
+  "license": "MIT",
+  "keywords": ["base", "token-launch", "security-scanner", "wallet", "mcp", "web3", "defi", "bonding-curve"]
+}

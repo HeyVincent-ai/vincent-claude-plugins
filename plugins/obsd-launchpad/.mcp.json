@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "obsd-launchpad": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "obsd-launchpad-mcp"],
+      "env": {
+        "RPC_URL": "https://mainnet.base.org"
+      }
+    },
+    "base-security-scanner": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "base-security-scanner-mcp"],
+      "env": {
+        "RPC_URL": "https://mainnet.base.org"
+      }
+    },
+    "base-wallet-toolkit": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "base-wallet-toolkit-mcp"],
+      "env": {
+        "RPC_URL": "https://mainnet.base.org"
+      }
+    }
+  }
+}
