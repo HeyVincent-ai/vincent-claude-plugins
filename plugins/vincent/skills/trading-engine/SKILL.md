@@ -2,7 +2,7 @@
 
 Use the Vincent Trading Engine MCP tools to create and manage automated trading strategies on Polymarket (and future venues). The Trading Engine has two modes:
 
-1. **Multi-Venue Strategies** — Define instruments, a thesis, drivers (data monitors), escalation policies, trade rules, and notifications. Includes a signal pipeline that filters noise before the LLM sees it, an LLM decision engine, and detailed analytics.
+1. **LLM-Powered Strategies** — Define instruments, a thesis, drivers (data monitors), escalation policies, trade rules, and notifications. Includes a signal pipeline that filters noise before the LLM sees it, an LLM decision engine, and detailed analytics.
 2. **Standalone Trade Rules** — Set stop-loss, take-profit, and trailing stop rules that execute automatically when price conditions are met. No LLM involved.
 
 Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
@@ -53,6 +53,8 @@ Use `vincent_v2_filter_stats` and `vincent_v2_escalation_stats` to see how signa
 | `vincent_v2_strategy_pause` | Pause an ACTIVE strategy |
 | `vincent_v2_strategy_resume` | Resume a PAUSED strategy |
 | `vincent_v2_strategy_archive` | Archive a strategy permanently |
+| `vincent_v2_strategy_duplicate` | Duplicate a strategy as a new version (creates a DRAFT copy) |
+| `vincent_v2_strategy_versions` | View version history for a strategy lineage |
 
 ## Analytics & Monitoring Tools
 
@@ -65,6 +67,7 @@ Use `vincent_v2_filter_stats` and `vincent_v2_escalation_stats` to see how signa
 | `vincent_v2_performance` | Performance metrics: P&L, win rate, per-instrument breakdown |
 | `vincent_v2_filter_stats` | Signal filter statistics (pass/drop at each pipeline layer) |
 | `vincent_v2_escalation_stats` | Escalation policy stats (wake frequency, batch counts, threshold breaches) |
+| `vincent_v2_costs` | Aggregate LLM costs for all strategies under a secret |
 
 ## Order Management Tools
 
@@ -107,7 +110,7 @@ Use `vincent_v2_filter_stats` and `vincent_v2_escalation_stats` to see how signa
 - `strategyId` (string, required)
 - `name`, `config`, `dataSourceSecretId`, `pollIntervalMinutes` — pass only fields to change (DRAFT only)
 
-### vincent_v2_strategy_activate / pause / resume / archive
+### vincent_v2_strategy_activate / pause / resume / archive / duplicate
 - `strategyId` (string, required)
 
 ### vincent_v2_signal_log / decision_log / trade_log
@@ -161,6 +164,79 @@ DRAFT → ACTIVE → PAUSED → ACTIVE (resume)
 - **ACTIVE**: Drivers running, signal pipeline processing, LLM invoked per escalation policy.
 - **PAUSED**: Pipeline stopped. Can resume.
 - **ARCHIVED**: Permanent. Cannot reactivate.
+
+To iterate on a strategy, duplicate it as a new version (creates a new DRAFT with incremented version number and the same config).
+
+---
+
+## Driver Configuration
+
+### Web Search Drivers
+
+Add a driver with `"sources": ["web_search"]`. The engine periodically searches Brave for the driver's keywords and triggers the signal pipeline when new results appear.
+
+```json
+{
+  "name": "AI News Monitor",
+  "weight": 1.5,
+  "direction": "bullish",
+  "monitoring": {
+    "keywords": ["AI tokens", "GPU shortage", "prediction market regulation"],
+    "embeddingAnchor": "AI technology investment trends",
+    "sources": ["web_search"]
+  }
+}
+```
+
+Each keyword is searched independently. Results are deduplicated — the same URLs won't trigger the pipeline twice.
+
+### Twitter Drivers
+
+Add a driver with `"sources": ["twitter"]`. The engine periodically checks the specified entities for new tweets.
+
+```json
+{
+  "name": "Crypto Twitter",
+  "weight": 1.0,
+  "direction": "contextual",
+  "monitoring": {
+    "entities": ["@DeepSeek", "@nvidia", "@OpenAI"],
+    "keywords": ["AI", "GPU"],
+    "sources": ["twitter"]
+  }
+}
+```
+
+Tweets are deduplicated by tweet ID — only genuinely new tweets trigger the pipeline.
+
+### Newswire Drivers (Finnhub)
+
+Add a driver with `"sources": ["newswire"]`. The engine periodically polls Finnhub's market news API and triggers the pipeline when new headlines matching your keywords appear.
+
+```json
+{
+  "name": "Market News",
+  "weight": 1.5,
+  "direction": "contextual",
+  "monitoring": {
+    "keywords": ["artificial intelligence", "GPU shortage", "semiconductor"],
+    "sources": ["newswire"]
+  }
+}
+```
+
+Headlines and summaries are matched case-insensitively. Articles are deduplicated by headline hash with a sliding window. Finnhub newswire calls are free (no credit deduction).
+
+### Price Triggers
+
+Price triggers are evaluated in real-time via the Polymarket WebSocket feed. When a price condition is met, the signal pipeline is invoked with the price data.
+
+Trigger types:
+- `ABOVE` — triggers when price exceeds a threshold
+- `BELOW` — triggers when price drops below a threshold
+- `CHANGE_PCT` — triggers on a percentage change from reference price
+
+Price triggers are one-shot: once fired, they're marked as consumed. The LLM can create new triggers if needed.
 
 ---
 
@@ -227,7 +303,23 @@ All trades placed by the LLM go through Vincent's policy engine — the LLM cann
 - **TAKE_PROFIT**: Sells when price >= triggerPrice
 - **TRAILING_STOP**: Moves stop price up as price rises. Sells when price drops below the trailing stop. `trailingPercent` controls how far below the peak the stop trails (e.g. 5 = 5%).
 
+**Trailing stop mechanics:**
+- Computes `candidateStop = currentPrice * (1 - trailingPercent/100)`
+- If `candidateStop` > current `triggerPrice`, updates `triggerPrice`
+- `triggerPrice` never moves down
+- Rule triggers when `currentPrice <= triggerPrice`
+
 Rule statuses: `ACTIVE` → `TRIGGERED` / `PENDING_APPROVAL` / `FAILED` / `CANCELED`
+
+**Event types:**
+- `RULE_CREATED` — Rule was created
+- `RULE_TRAILING_UPDATED` — Trailing stop moved triggerPrice upward
+- `RULE_EVALUATED` — Worker checked the rule against current price
+- `RULE_TRIGGERED` — Trigger condition was met
+- `ACTION_PENDING_APPROVAL` — Trade requires human approval, rule paused
+- `ACTION_EXECUTED` — Trade executed successfully
+- `ACTION_FAILED` — Trade execution failed
+- `RULE_CANCELED` — Rule was manually canceled
 
 ---
 
@@ -250,6 +342,11 @@ Rule statuses: `ACTIVE` → `TRIGGERED` / `PENDING_APPROVAL` / `FAILED` / `CANCE
 2. `vincent_trading_rule_create` with `ruleType: "STOP_LOSS"`, the market/token IDs, and a trigger price
 3. The rule executes automatically when the price condition is met
 
+### Iterate on a strategy
+1. `vincent_v2_strategy_duplicate` — creates a new DRAFT with the same config
+2. `vincent_v2_strategy_update` — tweak the draft config
+3. `vincent_v2_strategy_activate` — start the new version
+
 ### Place a manual order
 1. `vincent_v2_place_order` with venue, instrumentId, side, size, and orderType
 2. Orders go through policy enforcement
@@ -259,17 +356,92 @@ Rule statuses: `ACTIVE` → `TRIGGERED` / `PENDING_APPROVAL` / `FAILED` / `CANCE
 
 ---
 
+## Background Workers
+
+The Trading Engine runs two independent background workers:
+
+1. **Strategy Engine Worker** — Ticks every 30s, checks which strategy drivers are due, fetches new data, scores signals, and invokes the LLM when the escalation threshold is met. Also hooks into the Polymarket WebSocket for real-time price trigger evaluation.
+2. **Trade Rule Worker** — Monitors prices in real-time via WebSocket (with polling fallback), evaluates stop-loss/take-profit/trailing stop rules, executes trades when conditions are met.
+
+**Circuit Breaker:** Both workers use a circuit breaker pattern. If the Polymarket API fails 5+ consecutive times, the worker pauses and resumes after a cooldown. Check status with `vincent_trading_rule_status`.
+
+---
+
+## Output Format
+
+Strategy creation:
+
+```json
+{
+  "strategyId": "strat-123",
+  "name": "BTC Momentum",
+  "status": "DRAFT",
+  "version": 1
+}
+```
+
+Rule creation:
+
+```json
+{
+  "ruleId": "rule-456",
+  "ruleType": "STOP_LOSS",
+  "triggerPrice": 0.4,
+  "status": "ACTIVE"
+}
+```
+
+LLM invocation log entries:
+
+```json
+{
+  "invocationId": "inv-789",
+  "strategyId": "strat-123",
+  "trigger": "web_search",
+  "actions": ["place_trade"],
+  "costUsd": 0.12,
+  "createdAt": "2026-02-26T12:00:00.000Z"
+}
+```
+
+## Error Handling
+
+| Error                       | Cause                                             | Resolution                                           |
+| --------------------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| `401 Unauthorized`          | Invalid or missing API key                        | Check that `VINCENT_API_KEY` is set correctly        |
+| `403 Policy Violation`      | Trade blocked by server-side policy               | User must adjust policies at heyvincent.ai           |
+| `402 Insufficient Credit`   | Not enough credit for LLM invocation              | User must add credit at heyvincent.ai                |
+| `INVALID_STATUS_TRANSITION` | Strategy can't transition to requested state      | Check current status (e.g., only DRAFT can activate) |
+| `CIRCUIT_BREAKER_OPEN`      | Polymarket API failures triggered circuit breaker | Wait for cooldown; check `vincent_trading_rule_status` |
+| `429 Rate Limited`          | Too many requests or concurrent LLM invocations   | Wait and retry with backoff                          |
+
 ## Cost Tracking
 
 - LLM invocations cost $0.05-$0.30 depending on context size
 - Costs are deducted from the data source credit balance (`dataSourceCreditUsd`)
 - Brave Search drivers: ~$0.005/call. Twitter drivers: ~$0.005-$0.01/call. Newswire: free.
-- Use `vincent_trading_strategy_costs` to check spending
+- Use `vincent_v2_costs` to check spending
 
 ## Security
 
 - **LLM cannot bypass policies** — all trades go through Vincent's policy engine
 - **Backend-side LLM key** — the OpenRouter API key never leaves the server
 - **Credit gating** — no LLM invocation without sufficient credit
+- **Tool constraints** — the LLM's available tools are controlled by the strategy's `config.tools` settings. If `canTrade: false`, the trade tool is not provided
+- **Rate limiting** — max concurrent LLM invocations is capped to prevent runaway costs
 - **Audit trail** — every invocation recorded with full prompt, response, actions, cost, and duration
 - **All trades policy-enforced** — both LLM and standalone rules respect spending limits and approval thresholds
+- **No private keys** — the Trading Engine uses the Vincent API for all trades. Private keys stay on Vincent's servers
+
+## Example User Prompts
+
+When a user says:
+
+- **"Create a strategy to monitor AI tokens"** → Create strategy with web search + Twitter drivers
+- **"Set a stop-loss at 40 cents"** → Create STOP_LOSS rule
+- **"What has my strategy been doing?"** → Show invocations for the strategy
+- **"How is my strategy performing?"** → Show performance metrics
+- **"How much has the trading engine cost me?"** → Show cost summary
+- **"Pause my strategy"** → Pause the strategy
+- **"Make a new version with a different thesis"** → Duplicate, then update the draft
+- **"Set a 5% trailing stop"** → Create TRAILING_STOP rule

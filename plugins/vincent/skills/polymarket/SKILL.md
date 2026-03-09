@@ -1,6 +1,8 @@
 # Vincent Polymarket
 
-Use the Vincent Polymarket MCP tools to trade on prediction markets. Browse markets, place bets, track holdings, manage orders, and cancel positions — all without exposing private keys. Wallets use Gnosis Safe on Polygon with gasless trading through Polymarket's relayer.
+Use the Vincent Polymarket MCP tools to trade on prediction markets. Browse markets, place bets, track holdings, manage orders, redeem resolved positions, and withdraw funds — all without exposing private keys. Wallets use Gnosis Safe on Polygon with gasless trading through Polymarket's relayer.
+
+**The agent never sees the private key.** All operations are executed server-side. The agent receives a scoped API key that can only perform actions permitted by the wallet owner's policies. The private key never leaves the Vincent server.
 
 Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 
@@ -8,21 +10,25 @@ Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 
 | Tool | Description |
 |---|---|
-| `vincent_polymarket_markets` | Search or list prediction markets |
+| `vincent_polymarket_markets` | Search or list prediction markets (by keyword, slug, or URL) |
 | `vincent_polymarket_market` | Get details for a specific market by condition ID |
 | `vincent_polymarket_orderbook` | Get the order book for an outcome token |
 | `vincent_polymarket_bet` | Place a BUY or SELL order |
 | `vincent_polymarket_positions` | Get open positions and orders |
 | `vincent_polymarket_holdings` | Get portfolio holdings with P&L |
+| `vincent_polymarket_open_orders` | Get unfilled limit orders in the order book |
 | `vincent_polymarket_trades` | Get trade history |
 | `vincent_polymarket_balance` | Get wallet collateral (USDC.e) balance |
 | `vincent_polymarket_cancel_order` | Cancel a specific open order |
 | `vincent_polymarket_cancel_all` | Cancel all open orders |
+| `vincent_polymarket_redeem` | Redeem resolved positions to convert winning tokens back to USDC.e |
+| `vincent_polymarket_withdraw` | Withdraw USDC.e from the Polymarket Safe to any Polygon address |
 
 ## Tool Parameters
 
 ### vincent_polymarket_markets
 - `query` (string, optional): Keyword search (e.g. "bitcoin", "election")
+- `slug` (string, optional): Polymarket slug or full URL (e.g. `btc-updown-5m-1771380900` or `https://polymarket.com/event/btc-updown-5m-1771380900`)
 - `active` (boolean, optional): Only show markets accepting orders
 - `limit` (number, optional): 1-100 results
 - `nextCursor` (string, optional): Pagination cursor from previous response
@@ -42,11 +48,21 @@ Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 ### vincent_polymarket_positions
 - `market` (string, optional): Filter by condition ID
 
+### vincent_polymarket_open_orders
+- `market` (string, optional): Filter by condition ID
+
 ### vincent_polymarket_trades
 - `market` (string, optional): Filter by condition ID
 
 ### vincent_polymarket_cancel_order
 - `orderId` (string, required): Order ID to cancel
+
+### vincent_polymarket_redeem
+- `conditionIds` (string, optional): Comma-separated condition IDs to redeem specific markets. Omit to redeem all redeemable positions.
+
+### vincent_polymarket_withdraw
+- `to` (string, required): Recipient Ethereum address (0x..., 42 characters)
+- `amount` (number, required): Amount in USDC (human-readable, e.g. 100 = 100 USDC)
 
 ## Common Workflows
 
@@ -57,6 +73,10 @@ Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 4. Call `vincent_polymarket_bet` with `tokenId`, `side: "BUY"`, and `amount`
 5. Share the user's Polymarket profile link: `https://polymarket.com/profile/<walletAddress>`
 
+### Search by Polymarket URL or slug
+If the user provides a Polymarket URL, pass it directly as the `slug` parameter:
+1. Call `vincent_polymarket_markets` with `slug: "https://polymarket.com/event/btc-updown-5m-1771380900"` (or just the slug portion)
+
 ### Check positions and P&L
 1. Call `vincent_polymarket_holdings` — returns shares, entry price, current price, unrealized P&L
 2. Use this to decide whether to sell or set trade rules
@@ -66,20 +86,98 @@ Authentication is handled automatically by the MCP server via `VINCENT_API_KEY`.
 2. Call `vincent_polymarket_bet` with `side: "SELL"` and `amount` = number of shares
 3. **Wait a few seconds after buying before selling** — shares need time to settle on-chain
 
+### Redeem resolved positions
+1. Call `vincent_polymarket_holdings` to check which positions have `redeemable: true`
+2. Call `vincent_polymarket_redeem` to convert winning tokens back to USDC.e
+3. If no positions are redeemable, `redeemed` will be an empty array
+
+### Withdraw USDC
+1. Call `vincent_polymarket_withdraw` with the recipient address and amount
+2. This is gasless — executed via Polymarket's relayer
+3. Policy checks (spending limits, approval thresholds) apply to withdrawals
+
 ### Fund the wallet
 The wallet needs USDC.e (bridged USDC) on Polygon. The user must send USDC.e to the wallet address (from `vincent_polymarket_balance`).
 - USDC.e contract: `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`
 - **Do not send native USDC** (`0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`)
 - Minimum bet: $1
 
-## Security
+### Fund from Vincent EVM Wallet (Alternative)
+If the user has a Vincent EVM wallet with funds, they can transfer directly to the Polymarket wallet using the wallet `transfer-between` tools. Vincent verifies ownership of both secrets and handles token conversion and cross-chain bridging to get USDC.e on Polygon automatically.
 
-- **No gas needed.** All Polymarket transactions are gasless via Polymarket's relayer.
-- **Private keys never leave the server.** The agent gets a scoped Bearer token.
-- **Server-side policy enforcement.** The wallet owner sets spending limits and approval thresholds at [heyvincent.ai](https://heyvincent.ai).
-- **Human-in-the-loop.** Trades above the approval threshold trigger Telegram notifications.
-- If a trade violates a policy, the response explains which policy was triggered.
-- If a trade returns `status: "pending_approval"`, the wallet owner must approve via Telegram.
+## Output Format
+
+Market search results:
+
+```json
+{
+  "markets": [
+    {
+      "question": "Will Bitcoin exceed $100k?",
+      "outcomes": ["Yes", "No"],
+      "outcomePrices": ["0.65", "0.35"],
+      "tokenIds": ["123456...", "789012..."],
+      "acceptingOrders": true
+    }
+  ]
+}
+```
+
+Bet placement:
+
+```json
+{
+  "orderId": "0x...",
+  "status": "MATCHED",
+  "side": "BUY",
+  "price": "0.55",
+  "size": "9.09"
+}
+```
+
+For trades requiring human approval:
+
+```json
+{
+  "status": "pending_approval",
+  "message": "Transaction requires owner approval via Telegram"
+}
+```
+
+Withdraw response:
+
+```json
+{
+  "status": "executed",
+  "transactionHash": "0x...",
+  "walletAddress": "0x..."
+}
+```
+
+## Error Handling
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `401 Unauthorized` | Invalid or missing API key | Check that `VINCENT_API_KEY` is set correctly |
+| `403 Policy Violation` | Trade blocked by server-side policy | User must adjust policies at heyvincent.ai |
+| `INSUFFICIENT_BALANCE` | Not enough USDC.e for the trade | Fund the wallet with USDC.e on Polygon |
+| `429 Rate Limited` | Too many requests | Wait and retry with backoff |
+| `pending_approval` | Trade exceeds approval threshold | User will receive Telegram notification to approve/deny |
+| `No orderbook exists` | Market closed or wrong token ID | Verify `acceptingOrders: true` and use `tokenIds[]`, not `conditionId` |
+
+## Policies (Server-Side Enforcement)
+
+The wallet owner controls what the agent can do by setting policies at [heyvincent.ai](https://heyvincent.ai). All policies are enforced server-side — the agent cannot bypass or modify them. If a trade violates a policy, the API rejects it. If a trade triggers an approval threshold, the API holds it and sends the wallet owner a Telegram notification for out-of-band human approval.
+
+| Policy                      | What it does                                                     |
+| --------------------------- | ---------------------------------------------------------------- |
+| **Spending limit (per tx)** | Max USD value per transaction                                    |
+| **Spending limit (daily)**  | Max USD value per rolling 24 hours                               |
+| **Spending limit (weekly)** | Max USD value per rolling 7 days                                 |
+| **Require approval**        | Every transaction needs human approval via Telegram              |
+| **Approval threshold**      | Transactions above a USD amount need human approval via Telegram |
+
+Before the wallet is claimed, the agent can operate without policy restrictions. Once the human operator claims the wallet, they can add policies to constrain the agent's behavior and can revoke the agent's API key entirely at any time.
 
 ## Important Notes
 
@@ -88,3 +186,8 @@ The wallet needs USDC.e (bridged USDC) on Polygon. The user must send USDC.e to 
 - After any bet, share the user's Polymarket profile: `https://polymarket.com/profile/<walletAddress>`
 - The first `vincent_polymarket_balance` call triggers Safe deployment and collateral approval (30-60 seconds).
 - Use short keyword phrases in search. Stop-words like "or" can cause empty results.
+- **No gas needed.** All Polymarket transactions are gasless via Polymarket's relayer.
+- **Never try to access raw secret values.** The private key stays server-side.
+- If a transaction is rejected, it may be blocked by a server-side policy. Tell the user to check their policy settings at [heyvincent.ai](https://heyvincent.ai).
+- If a transaction requires approval, it will return `status: "pending_approval"`. The wallet owner will receive a Telegram notification to approve or deny.
+- After a market resolves, check holdings periodically for `redeemable: true` positions and redeem them.
